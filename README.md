@@ -14,5 +14,26 @@ And yes, it preserves the body in readable Markdown, the images are linked autom
 
 ![Converted article content example](public/converted-article.png)
 
+## Installation
+
+1. **Download the extension**
+   - Clone this repository or download it as a ZIP file and extract it
+   ```bash
+   git clone https://github.com/jgonzalezd/x-article-2-obsidian-md.git
+   ```
+
+2. **Load in Chrome/Brave**
+   - Open Chrome/Brave and go to `chrome://extensions/`
+   - Enable **Developer mode** (toggle in the top right)
+   - Click **Load unpacked**
+   - Select the extension folder (`xpost2md`)
+
+3. **Use it**
+   - Navigate to any X.com article
+   - Click the extension icon in your browser toolbar
+   - Click **Convert to Markdown**
+   - A `.zip` file will download containing the markdown file and images
+   - Extract and move to your Obsidian vault
+
 If you're a heavy Obsidian user, you'll appreciate this extension and use it almost daily.
 
