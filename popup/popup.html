@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X Article to Obsidian MD</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>X to Obsidian</h1>
+    <p class="description">Convert X.com articles to Obsidian markdown</p>
+
+    <button id="convertBtn" class="convert-btn">
+      <span class="btn-text">Convert to Markdown</span>
+      <span class="btn-loading" style="display: none;">
+        <span class="spinner"></span>
+        Converting...
+      </span>
+    </button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
