@@ -1,0 +1,18 @@
+# X to Obsidian
+
+I quite often find good stuff on X that I want to use for inspiration for content ideas or improving my internal processes; sometimes it's just a piece of the article, sometimes is the general idea, but when I was copying and pasting from X into my obsidian I had to do repetitive markdown fomatting I felt a really bad taste in my mouth about my precious time being wasted. 
+
+So I built a tiny Chrome/Brave extension that does one blunt, practical thing: it converts an X.com article into an Obsidian-friendly Markdown file. One click, a clean `.md`, ready to drop into a vault.
+
+<img src="public/extension-popup.png" alt="Extension popup on an X article" width="600">
+
+When the file lands in the vault, it keeps the stuff that makes knowledge bases useful: metadata you can query later. Title. Author. Date. Source. Tags. The boring scaffolding that turns a pile of text into something you can work with.
+
+<img src="public/obsidian-properties.png" alt="Obsidian note with properties and source link" width="250">
+
+And yes, it preserves the body in readable Markdown, the images are linked automatically in the original places.
+
+<img src="public/converted-article.png" alt="Converted article content example" width="250">
+
+If you're a heavy Obsidian user, you'll appreciate this extension and use it almost daily.
+
