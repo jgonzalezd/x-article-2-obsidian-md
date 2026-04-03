@@ -7,13 +7,27 @@
     title: '[data-testid="twitter-article-title"]',
     content: '[data-testid="twitterArticleRichTextView"]',
     images: '[data-testid="tweetPhoto"] img',
-    authorLink: 'a[href^="/"][role="link"]'
+    authorLink: 'a[href^="/"][role="link"]',
+    tweet: '[data-testid="tweet"]',
+    tweetUserName: '[data-testid="User-Name"]',
+    tweetText: '[data-testid="tweetText"]',
+    tweetPhoto: '[data-testid="tweetPhoto"] img'
   };
 
   try {
-    return await convertArticle();
+    return await convertPage();
   } catch (error) {
     return { success: false, error: error.message };
+  }
+
+  async function convertPage() {
+    if (isTweetPage()) return await convertTweet();
+    return await convertArticle();
+  }
+
+  function isTweetPage() {
+    if (/\/[^/]+\/status\/\d+/.test(window.location.pathname)) return true;
+    return !!document.querySelector(SELECTORS.tweet) && !document.querySelector(SELECTORS.articleWrapper);
   }
 
   async function convertArticle() {
@@ -36,6 +50,146 @@
     const filename = await createAndDownloadZip(markdown, images, articleData.title);
 
     return { success: true, filename };
+  }
+
+  async function convertTweet() {
+    const tweetEl = findPrimaryTweet();
+    if (!tweetEl) {
+      throw new Error('No tweet found on this page. Please navigate to a tweet status page.');
+    }
+    const tweetData = extractTweetData(tweetEl);
+    const images = await downloadAllImages(tweetData.imageUrls);
+    const markdown = generateTweetMarkdown(tweetData, images);
+    const filename = await createAndDownloadZip(markdown, images, tweetData.title);
+    return { success: true, filename };
+  }
+
+  function findPrimaryTweet() {
+    const statusIdMatch = window.location.pathname.match(/\/status\/(\d+)/);
+    const currentStatusId = statusIdMatch ? statusIdMatch[1] : null;
+    const allTweets = document.querySelectorAll(SELECTORS.tweet);
+    if (currentStatusId) {
+      for (const tweet of allTweets) {
+        if (tweet.querySelector(`a[href*="/status/${currentStatusId}"] time`)) return tweet;
+      }
+    }
+    return allTweets[0] || null;
+  }
+
+  function extractTweetData(tweetEl) {
+    const userNameEl = tweetEl.querySelector(SELECTORS.tweetUserName);
+    const displayName = extractDisplayName(userNameEl);
+    const username = extractUsername(userNameEl);
+    const timeEl = tweetEl.querySelector('time[datetime]');
+    const date = timeEl ? timeEl.getAttribute('datetime').split('T')[0] : new Date().toISOString().split('T')[0];
+    const tweetUrl = extractTweetUrl(tweetEl);
+    const textEl = tweetEl.querySelector(SELECTORS.tweetText);
+    const { content, imageUrls } = extractTweetContent(tweetEl, textEl);
+    const stats = extractEngagementStats(tweetEl);
+    return { title: `Tweet by @${username}`, username, displayName, date, tweetUrl, content, imageUrls, stats };
+  }
+
+  function extractDisplayName(userNameEl) {
+    if (!userNameEl) return 'Unknown';
+    const span = userNameEl.querySelector('a span');
+    return span ? span.textContent.trim() : 'Unknown';
+  }
+
+  function extractUsername(userNameEl) {
+    if (!userNameEl) {
+      const m = window.location.pathname.match(/^\/([^/]+)/);
+      return m ? m[1] : 'unknown';
+    }
+    for (const span of userNameEl.querySelectorAll('span')) {
+      const text = span.textContent.trim();
+      if (text.startsWith('@')) return text.slice(1);
+    }
+    return 'unknown';
+  }
+
+  function extractTweetUrl(tweetEl) {
+    const timeEl = tweetEl.querySelector('time');
+    if (timeEl) {
+      const link = timeEl.closest('a');
+      if (link) {
+        const href = link.getAttribute('href');
+        if (href && href.includes('/status/'))
+          return href.startsWith('http') ? href : `https://x.com${href}`;
+      }
+    }
+    return window.location.href;
+  }
+
+  function extractTweetContent(tweetEl, textEl) {
+    const imageUrls = [];
+    let imageCounter = 0;
+    tweetEl.querySelectorAll(SELECTORS.tweetPhoto).forEach(img => {
+      const src = img.src;
+      if (src && (src.includes('pbs.twimg.com') || src.includes('abs.twimg.com'))) {
+        imageCounter++;
+        const ext = getImageExtension(src);
+        const name = `image-${imageCounter}.${ext}`;
+        imageUrls.push({ url: src, name });
+      }
+    });
+    if (!textEl) return { content: '', imageUrls };
+    let content = htmlToMarkdown(textEl.cloneNode(true)).trim();
+    for (const { name } of imageUrls) content += `\n\n![[images/${name}]]`;
+    return { content, imageUrls };
+  }
+
+  function extractEngagementStats(tweetEl) {
+    const stats = { likes: 0, reposts: 0, bookmarks: 0, views: 0 };
+    const like = tweetEl.querySelector('button[data-testid="like"]');
+    const retweet = tweetEl.querySelector('button[data-testid="retweet"]');
+    const bookmark = tweetEl.querySelector('button[data-testid="bookmark"]');
+    if (like) stats.likes = parseStatFromAriaLabel(like.getAttribute('aria-label'));
+    if (retweet) stats.reposts = parseStatFromAriaLabel(retweet.getAttribute('aria-label'));
+    if (bookmark) stats.bookmarks = parseStatFromAriaLabel(bookmark.getAttribute('aria-label'));
+    const analyticsLink = tweetEl.querySelector('a[href*="/analytics"]');
+    if (analyticsLink) {
+      stats.views = parseViewCount(analyticsLink.textContent.trim());
+    } else {
+      const group = tweetEl.querySelector('[role="group"][aria-label]');
+      if (group) {
+        const m = group.getAttribute('aria-label').match(/([\d,]+)\s+views/i);
+        if (m) stats.views = parseInt(m[1].replace(/,/g, ''), 10);
+      }
+    }
+    return stats;
+  }
+
+  function parseStatFromAriaLabel(label) {
+    if (!label) return 0;
+    const m = label.match(/^([\d,]+)\s/);
+    return m ? parseInt(m[1].replace(/,/g, ''), 10) : 0;
+  }
+
+  function parseViewCount(text) {
+    if (!text) return 0;
+    const cleaned = text.replace(/,/g, '').replace(/views/i, '').trim();
+    if (/[\d.]+K$/i.test(cleaned)) return Math.round(parseFloat(cleaned) * 1000);
+    if (/[\d.]+M$/i.test(cleaned)) return Math.round(parseFloat(cleaned) * 1_000_000);
+    return parseInt(cleaned, 10) || 0;
+  }
+
+  function generateTweetMarkdown(tweetData, images) {
+    const { title, username, displayName, date, tweetUrl, content, stats } = tweetData;
+    const frontmatter = [
+      '---',
+      `title: "${escapeYaml(title)}"`,
+      `author: "${escapeYaml(username)}"`,
+      `author_name: "${escapeYaml(displayName)}"`,
+      `date: ${date}`,
+      `source: "${tweetUrl}"`,
+      'tags: [tweet]',
+      `likes: ${stats.likes}`,
+      `reposts: ${stats.reposts}`,
+      `bookmarks: ${stats.bookmarks}`,
+      `views: ${stats.views}`,
+      '---'
+    ].join('\n');
+    return frontmatter + '\n\n' + content;
   }
 
   function extractArticleData(wrapper) {
@@ -389,7 +543,7 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-      .slice(0, 50) || 'article';
+      .slice(0, 50) || 'export';
 
     // Add markdown file with same name as zip
     zip.file(`${safeTitle}.md`, markdown);

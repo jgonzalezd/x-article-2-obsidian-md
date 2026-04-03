@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      showStatus('Extracting article content...', 'info');
+      showStatus('Extracting content...', 'info');
 
       // Inject JSZip first
       await chrome.scripting.executeScript({
