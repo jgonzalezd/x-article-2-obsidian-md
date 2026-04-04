@@ -26,8 +26,9 @@
   }
 
   function isTweetPage() {
+    if (document.querySelector(SELECTORS.articleWrapper)) return false;
     if (/\/[^/]+\/status\/\d+/.test(window.location.pathname)) return true;
-    return !!document.querySelector(SELECTORS.tweet) && !document.querySelector(SELECTORS.articleWrapper);
+    return !!document.querySelector(SELECTORS.tweet);
   }
 
   async function convertArticle() {
@@ -384,8 +385,22 @@
           result = '\n\n---\n\n';
           break;
         case 'div':
-        case 'span':
+          result = node.getAttribute('data-block') === 'true'
+            ? `\n\n${processChildren(node)}\n\n`
+            : processChildren(node);
+          break;
         case 'section':
+          result = node.getAttribute('data-block') === 'true'
+            ? `\n\n${processChildren(node)}\n\n`
+            : processChildren(node);
+          break;
+        case 'span': {
+          const spanStyle = node.getAttribute('style') || '';
+          result = (spanStyle.includes('font-weight: bold') || spanStyle.includes('font-weight:bold'))
+            ? `**${processChildren(node)}**`
+            : processChildren(node);
+          break;
+        }
         case 'article':
         default:
           result = processChildren(node);
