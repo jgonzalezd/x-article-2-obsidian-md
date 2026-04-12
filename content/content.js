@@ -139,19 +139,22 @@
     return { content, imageUrls };
   }
 
-  function extractEngagementStats(tweetEl) {
-    const stats = { likes: 0, reposts: 0, bookmarks: 0, views: 0 };
-    const like = tweetEl.querySelector('button[data-testid="like"]');
-    const retweet = tweetEl.querySelector('button[data-testid="retweet"]');
-    const bookmark = tweetEl.querySelector('button[data-testid="bookmark"]');
+  function extractEngagementStats(el) {
+    const stats = { replies: 0, likes: 0, reposts: 0, bookmarks: 0, views: 0 };
+    const reply = el.querySelector('button[data-testid="reply"]');
+    const like = el.querySelector('button[data-testid="like"]');
+    const retweet = el.querySelector('button[data-testid="retweet"]');
+    const bookmark = el.querySelector('button[data-testid="bookmark"]')
+                  || el.querySelector('button[data-testid="removeBookmark"]');
+    if (reply) stats.replies = parseStatFromAriaLabel(reply.getAttribute('aria-label'));
     if (like) stats.likes = parseStatFromAriaLabel(like.getAttribute('aria-label'));
     if (retweet) stats.reposts = parseStatFromAriaLabel(retweet.getAttribute('aria-label'));
     if (bookmark) stats.bookmarks = parseStatFromAriaLabel(bookmark.getAttribute('aria-label'));
-    const analyticsLink = tweetEl.querySelector('a[href*="/analytics"]');
+    const analyticsLink = el.querySelector('a[href*="/analytics"]');
     if (analyticsLink) {
       stats.views = parseViewCount(analyticsLink.textContent.trim());
     } else {
-      const group = tweetEl.querySelector('[role="group"][aria-label]');
+      const group = el.querySelector('[role="group"][aria-label]');
       if (group) {
         const m = group.getAttribute('aria-label').match(/([\d,]+)\s+views/i);
         if (m) stats.views = parseInt(m[1].replace(/,/g, ''), 10);
@@ -184,6 +187,7 @@
       `date: ${date}`,
       `source: "${tweetUrl}"`,
       'tags: [tweet]',
+      `replies: ${stats.replies}`,
       `likes: ${stats.likes}`,
       `reposts: ${stats.reposts}`,
       `bookmarks: ${stats.bookmarks}`,
@@ -208,13 +212,18 @@
     const contentElement = wrapper.querySelector(SELECTORS.content);
     const { content, imageUrls } = extractContent(contentElement);
 
+    // Extract engagement stats from the parent article element
+    const articleEl = wrapper.closest('article') || wrapper.parentElement;
+    const stats = extractEngagementStats(articleEl);
+
     return {
       title,
       author,
       date,
       sourceUrl: window.location.href,
       content,
-      imageUrls
+      imageUrls,
+      stats
     };
   }
 
@@ -520,7 +529,7 @@
   }
 
   function generateMarkdown(articleData, images) {
-    const { title, author, date, sourceUrl, content } = articleData;
+    const { title, author, date, sourceUrl, content, stats } = articleData;
 
     // Generate YAML frontmatter
     const frontmatter = [
@@ -530,6 +539,11 @@
       `date: ${date}`,
       `source: "${sourceUrl}"`,
       'tags: [x-article]',
+      `replies: ${stats.replies}`,
+      `likes: ${stats.likes}`,
+      `reposts: ${stats.reposts}`,
+      `bookmarks: ${stats.bookmarks}`,
+      `views: ${stats.views}`,
       '---'
     ].join('\n');
 
